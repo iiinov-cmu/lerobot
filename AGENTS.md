@@ -51,4 +51,4 @@ pre-commit run --all-files                           # Lint + format (ruff, typo
 - **Mypy is gradual**: strict only for `lerobot.envs`, `lerobot.configs`, `lerobot.optim`, `lerobot.model`, `lerobot.cameras`, `lerobot.motors`, `lerobot.transport`. Add type annotations when modifying these modules.
 - **Optional dependencies**: many policies, envs, and robots are behind extras (e.g., `lerobot[aloha]`). New imports for optional packages must be guarded or lazy. See `pyproject.toml [project.optional-dependencies]`.
 - **Video decoding**: datasets can store observations as video files. `LeRobotDataset` handles frame extraction, but tests need ffmpeg installed.
-- **Prioritize use of `uv run`** to execute Python commands (not raw `python` or `pip`).
+- **Prioritize use of `conda run -n lerobot`** to execute Python commands (not `uv run`, raw `python`, or `pip`).
