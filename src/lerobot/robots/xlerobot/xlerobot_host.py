@@ -101,8 +101,13 @@ def main():
             for cam_key in robot.connected_cameras:
                 if cam_key not in last_observation:
                     continue
+                # .copy() needed: pyrealsense2 (conda-forge) returns arrays with
+                # a different numpy ABI than pip's opencv-python expects
+                img = last_observation[cam_key]
+                if hasattr(img, 'copy'):
+                    img = img.copy()
                 ret, buffer = cv2.imencode(
-                    ".jpg", last_observation[cam_key], [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                    ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
                 )
                 if ret:
                     last_observation[cam_key] = base64.b64encode(buffer).decode("utf-8")
