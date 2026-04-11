@@ -543,7 +543,7 @@ class XLerobot(Robot):
 
     def _bus2_read_individual(self, data_name: str, motors: list[str]) -> dict[str, Any]:
         """Read from bus2 motors one at a time (sync_read corrupts this bus)."""
-        from lerobot.motors.feetech import get_address
+        from lerobot.motors.motors_bus import get_address
         model = next(iter(self.bus2.motors.values())).model
         addr, length = get_address(self.bus2.model_ctrl_table, model, data_name)
         results = {}
@@ -573,7 +573,7 @@ class XLerobot(Robot):
 
     def _bus2_write_individual(self, data_name: str, values: dict[str, Any]) -> None:
         """Write to bus2 motors one at a time (sync_write corrupts this bus)."""
-        from lerobot.motors.feetech import get_address
+        from lerobot.motors.motors_bus import get_address
         model = next(iter(self.bus2.motors.values())).model
         addr, length = get_address(self.bus2.model_ctrl_table, model, data_name)
         for name, val in values.items():
