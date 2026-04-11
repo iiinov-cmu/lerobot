@@ -198,9 +198,12 @@ class XLerobot(Robot):
                     self.bus2.calibration = {k: v for k, v in self.calibration.items() if k in self.bus2.motors}
                     logger.info("Calibration data loaded into bus memory successfully!")
                     
-                    # Write calibration data to motors
+                    # Write calibration to bus1 motors (only 2 head motors, safe)
                     self.bus1.write_calibration({k: v for k, v in self.calibration.items() if k in self.bus1.motors})
-                    self.bus2.write_calibration({k: v for k, v in self.calibration.items() if k in self.bus2.motors})
+                    # Skip write_calibration on bus2 — EEPROM is locked (Lock=1) and
+                    # writes to locked registers corrupt the 9-motor daisy chain.
+                    # Calibration is already in motor EEPROM from the calibrate step,
+                    # and in-memory calibration was loaded above (line bus2.calibration=...).
                     logger.info("Calibration restored successfully from file!")
                     
                 except Exception as e:
