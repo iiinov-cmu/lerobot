@@ -541,16 +541,68 @@ class XLerobot(Robot):
             "theta.vel": theta_cmd,
         }
 
+    def _bus2_read_individual(self, data_name: str, motors: list[str]) -> dict[str, Any]:
+        """Read from bus2 motors one at a time (sync_read corrupts this bus)."""
+        from lerobot.motors.feetech import get_address
+        model = next(iter(self.bus2.motors.values())).model
+        addr, length = get_address(self.bus2.model_ctrl_table, model, data_name)
+        results = {}
+        for name in motors:
+            motor_id = self.bus2.motors[name].id
+            if length == 1:
+                val, res, _ = self.bus2.packet_handler.read1ByteTxRx(
+                    self.bus2.port_handler, motor_id, addr)
+            elif length == 2:
+                val, res, _ = self.bus2.packet_handler.read2ByteTxRx(
+                    self.bus2.port_handler, motor_id, addr)
+            else:
+                val, res, _ = self.bus2.packet_handler.read4ByteTxRx(
+                    self.bus2.port_handler, motor_id, addr)
+            if res == 0:
+                # Apply sign decoding for signed values
+                if data_name in self.bus2.signed_data and length == 2 and val >= 0x8000:
+                    val -= 0x10000
+                # Apply calibration normalization if available
+                if self.bus2.calibration and name in self.bus2.calibration and data_name in self.bus2.normalized_data:
+                    cal = self.bus2.calibration[name]
+                    val = self.bus2._normalize_cal(data_name, name, val, cal)
+                results[name] = val
+            else:
+                logger.warning(f"Failed to read {data_name} from {name} (ID {motor_id})")
+        return results
+
+    def _bus2_write_individual(self, data_name: str, values: dict[str, Any]) -> None:
+        """Write to bus2 motors one at a time (sync_write corrupts this bus)."""
+        from lerobot.motors.feetech import get_address
+        model = next(iter(self.bus2.motors.values())).model
+        addr, length = get_address(self.bus2.model_ctrl_table, model, data_name)
+        for name, val in values.items():
+            motor_id = self.bus2.motors[name].id
+            int_val = int(round(val))
+            if length == 2 and int_val < 0:
+                int_val += 0x10000
+            if length == 1:
+                self.bus2.packet_handler.write1ByteTxRx(
+                    self.bus2.port_handler, motor_id, addr, int_val)
+            elif length == 2:
+                self.bus2.packet_handler.write2ByteTxRx(
+                    self.bus2.port_handler, motor_id, addr, int_val)
+            else:
+                self.bus2.packet_handler.write4ByteTxRx(
+                    self.bus2.port_handler, motor_id, addr, int_val)
+
     def get_observation(self) -> dict[str, Any]:
         if not self.is_connected:
             raise DeviceNotConnectedError(f"{self} is not connected.")
 
         # Read actuators position for arm and vel for base
+        # Bus2 cannot use sync_read (bulk reads corrupt the 9-motor daisy chain).
+        # Read each motor individually via raw packet handler instead.
         start = time.perf_counter()
         left_arm_pos = self.bus1.sync_read("Present_Position", self.left_arm_motors) if self.left_arm_motors else {}
-        right_arm_pos = self.bus2.sync_read("Present_Position", self.right_arm_motors)
+        right_arm_pos = self._bus2_read_individual("Present_Position", self.right_arm_motors)
         head_pos = self.bus1.sync_read("Present_Position", self.head_motors)
-        base_wheel_vel = self.bus2.sync_read("Present_Velocity", self.base_motors)
+        base_wheel_vel = self._bus2_read_individual("Present_Velocity", self.base_motors)
         
         base_vel = self._wheel_raw_to_body(
             base_wheel_vel["base_left_wheel"],
@@ -612,7 +664,7 @@ class XLerobot(Robot):
         if self.config.max_relative_target is not None:
             # Read present positions for left arm, right arm, and head
             present_pos_left = self.bus1.sync_read("Present_Position", self.left_arm_motors) if self.left_arm_motors else {}
-            present_pos_right = self.bus2.sync_read("Present_Position", self.right_arm_motors)
+            present_pos_right = self._bus2_read_individual("Present_Position", self.right_arm_motors)
             present_pos_head = self.bus1.sync_read("Present_Position", self.head_motors)
 
             # Combine all present positions
@@ -637,11 +689,11 @@ class XLerobot(Robot):
         if left_arm_pos_raw:
             self.bus1.sync_write("Goal_Position", left_arm_pos_raw)
         if right_arm_pos_raw:
-            self.bus2.sync_write("Goal_Position", right_arm_pos_raw)
+            self._bus2_write_individual("Goal_Position", right_arm_pos_raw)
         if head_pos_raw:
             self.bus1.sync_write("Goal_Position", head_pos_raw)
         if base_wheel_goal_vel:
-            self.bus2.sync_write("Goal_Velocity", base_wheel_goal_vel)
+            self._bus2_write_individual("Goal_Velocity", base_wheel_goal_vel)
         return {
             **left_arm_pos,
             **right_arm_pos,
@@ -650,7 +702,7 @@ class XLerobot(Robot):
         }
 
     def stop_base(self):
-        self.bus2.sync_write("Goal_Velocity", dict.fromkeys(self.base_motors, 0), num_retry=5)
+        self._bus2_write_individual("Goal_Velocity", dict.fromkeys(self.base_motors, 0))
         logger.info("Base motors stopped")
 
     def disconnect(self):
