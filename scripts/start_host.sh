@@ -11,14 +11,21 @@ echo "=== XLeRobot Host Startup ==="
 # Check which ports have which motors
 echo "Scanning USB ports..."
 PYTHONPATH=src python -c "
-from lerobot.motors.feetech import FeetechMotorsBus
-from lerobot.motors import Motor, MotorNormMode
+from scservo_sdk import PortHandler, PacketHandler
 for p in ['/dev/ttyACM0', '/dev/ttyACM1']:
-    b = FeetechMotorsBus(port=p, motors={'x': Motor(1, 'sts3215', MotorNormMode.RANGE_M100_100)})
-    b.port_handler.openPort(); b.port_handler.setBaudRate(1000000)
-    ids = [i for i in range(1,10) if b.packet_handler.ping(b.port_handler, i)[1]==0]
+    ph = PortHandler(p)
+    if not ph.openPort():
+        print(f'  {p}: could not open')
+        continue
+    ph.setBaudRate(1000000)
+    pkt = PacketHandler(0)
+    ids = []
+    for i in range(1, 10):
+        _, result, _ = pkt.ping(ph, i)
+        if result == 0:
+            ids.append(i)
+    ph.closePort()
     print(f'  {p}: motor IDs {ids}')
-    b.port_handler.closePort()
 "
 
 echo ""
