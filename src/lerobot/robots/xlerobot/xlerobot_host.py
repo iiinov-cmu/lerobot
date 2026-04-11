@@ -98,7 +98,9 @@ def main():
                 # Send stale observation rather than crashing
 
             # Encode ndarrays to base64 strings
-            for cam_key, _ in robot.cameras.items():
+            for cam_key in robot.connected_cameras:
+                if cam_key not in last_observation:
+                    continue
                 ret, buffer = cv2.imencode(
                     ".jpg", last_observation[cam_key], [int(cv2.IMWRITE_JPEG_QUALITY), 90]
                 )

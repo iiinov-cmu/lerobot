@@ -132,6 +132,7 @@ class XLerobot(Robot):
         self.head_motors = [motor for motor in self.bus1.motors if motor.startswith("head")]
         self.base_motors = [motor for motor in self.bus2.motors if motor.startswith("base")]
         self.cameras = make_cameras_from_configs(config.cameras)
+        self.connected_cameras: dict = {}  # populated in connect()
 
     @property
     def _state_ft(self) -> dict[str, type]:
@@ -174,9 +175,7 @@ class XLerobot(Robot):
 
     @property
     def is_connected(self) -> bool:
-        return self.bus1.is_connected and self.bus2.is_connected and all(
-            cam.is_connected for cam in self.cameras.values()
-        )
+        return self.bus1.is_connected and self.bus2.is_connected
 
     def connect(self, calibrate: bool = True) -> None:
         if self.is_connected:
@@ -221,6 +220,7 @@ class XLerobot(Robot):
         for cam_name, cam in self.cameras.items():
             try:
                 cam.connect()
+                self.connected_cameras[cam_name] = cam
             except Exception as e:
                 logger.warning(f"Failed to connect camera '{cam_name}': {e}. Continuing without this camera.")
                 failed_cams.append(cam_name)
@@ -318,9 +318,9 @@ class XLerobot(Robot):
         self.bus1.disable_torque()
         self.bus1.configure_motors()
 
-        # bus 2
+        # bus 2 — return_delay_time=10 prevents bus corruption when writing to multiple motors
         self.bus2.disable_torque()
-        self.bus2.configure_motors()
+        self.bus2.configure_motors(return_delay_time=10)
         
         
         for name in self.left_arm_motors:
@@ -577,12 +577,12 @@ class XLerobot(Robot):
     
     def get_camera_observation(self):
         obs_dict = {}
-        for cam_key, cam in self.cameras.items():
+        for cam_key, cam in self.connected_cameras.items():
             start = time.perf_counter()
             obs_dict[cam_key] = cam.async_read()
             dt_ms = (time.perf_counter() - start) * 1e3
             logger.debug(f"{self} read {cam_key}: {dt_ms:.1f}ms")
-        
+
         return obs_dict
 
     def send_action(self, action: dict[str, Any]) -> dict[str, Any]:
@@ -663,7 +663,7 @@ class XLerobot(Robot):
         self.stop_base()
         self.bus1.disconnect(self.config.disable_torque_on_disconnect)
         self.bus2.disconnect(self.config.disable_torque_on_disconnect)
-        for cam in self.cameras.values():
+        for cam in self.connected_cameras.values():
             cam.disconnect()
 
         logger.info(f"{self} disconnected.")
