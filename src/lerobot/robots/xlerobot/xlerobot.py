@@ -318,13 +318,10 @@ class XLerobot(Robot):
         self.bus1.disable_torque()
         self.bus1.configure_motors()
 
-        # bus 2 — write staggered Return_Delay_Time values matching motor IDs
-        # to prevent bus response collisions on the shared serial line.
-        # Do NOT call configure_motors() which overwrites with a uniform value.
+        # bus 2 — skip configure_motors entirely. The staggered Return_Delay_Time
+        # values (set to motor ID) are already in EEPROM and any write sequence
+        # to 9 motors on this bus corrupts communication. Only disable torque.
         self.bus2.disable_torque()
-        for name, motor in self.bus2.motors.items():
-            self.bus2.write("Return_Delay_Time", name, motor.id)
-            self.bus2.write("Acceleration", name, 254)
         
         
         for name in self.left_arm_motors:
@@ -343,28 +340,18 @@ class XLerobot(Robot):
             self.bus1.write("I_Coefficient", name, 0)
             self.bus1.write("D_Coefficient", name, 43)
         
-        for name in self.right_arm_motors:
-            self.bus2.write("Operating_Mode", name, OperatingMode.POSITION.value)
-            # Set P_Coefficient to lower value to avoid shakiness (Default is 32)
-            self.bus2.write("P_Coefficient", name, 16)
-            # Set I_Coefficient and D_Coefficient to default value 0 and 32
-            self.bus2.write("I_Coefficient", name, 0)
-            self.bus2.write("D_Coefficient", name, 43)
-        
-        for name in self.base_motors:
-            self.bus2.write("Operating_Mode", name, OperatingMode.VELOCITY.value)
-        
-        
+        # Skip bus2 PID/operating mode writes — values are already correct in EEPROM
+        # (Lock=1) and bulk writes corrupt this 9-motor daisy chain.
+
         self.bus1.enable_torque()
-        try:
-            self.bus2.enable_torque()
-        except Exception as e:
-            logger.warning(f"Failed to enable torque on bus2: {e}. Retrying individual motors...")
-            for name in self.right_arm_motors + self.base_motors:
-                try:
-                    self.bus2.enable_torque(name)
-                except Exception as e2:
-                    logger.error(f"Failed to enable torque on {name}: {e2}")
+        # Enable torque on bus2 one motor at a time — sync_write fails on this bus
+        import time
+        for name in self.right_arm_motors + self.base_motors:
+            try:
+                self.bus2.enable_torque(name)
+                time.sleep(0.05)
+            except Exception as e:
+                logger.error(f"Failed to enable torque on {name}: {e}")
         
 
     def setup_motors(self) -> None:
