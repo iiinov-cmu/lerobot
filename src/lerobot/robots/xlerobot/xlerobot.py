@@ -660,6 +660,8 @@ class XLerobot(Robot):
         head_pos_raw = {k.replace(".pos", ""): v for k, v in head_pos.items()}
         
         # Only sync_write if there are motors to write to
+        # Filter to only motors that exist on the bus (left arm may be removed)
+        left_arm_pos_raw = {k: v for k, v in left_arm_pos_raw.items() if k in self.bus1.motors}
         if left_arm_pos_raw:
             self.bus1.sync_write("Goal_Position", left_arm_pos_raw)
         if right_arm_pos_raw:
