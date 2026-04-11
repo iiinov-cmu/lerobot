@@ -60,6 +60,7 @@ def main():
     host = XLerobotHost(host_config)
 
     last_cmd_time = time.time()
+    last_observation = {}
     watchdog_active = False
     logging.info("Waiting for commands...")
     try:
@@ -88,7 +89,13 @@ def main():
                 watchdog_active = True
                 robot.stop_base()
 
-            last_observation = robot.get_observation()
+            try:
+                last_observation = robot.get_observation()
+            except Exception as e:
+                logging.error("get_observation failed: %s", e)
+                if not last_observation:
+                    last_observation = {}
+                # Send stale observation rather than crashing
 
             # Encode ndarrays to base64 strings
             for cam_key, _ in robot.cameras.items():

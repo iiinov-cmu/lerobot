@@ -74,20 +74,26 @@ class XLerobot(Robot):
         else:
             calibration1 = self.calibration
         
+        # Left arm is physically removed — only init head motors on bus1.
+        # If left arm servos (IDs 1-6) are absent, FeetechMotorsBus fails
+        # for the entire bus. So we only configure the motors that exist.
+        bus1_motors = {
+            # head
+            "head_motor_1": Motor(7, "sts3215", norm_mode_body),
+            "head_motor_2": Motor(8, "sts3215", norm_mode_body),
+        }
+        # Uncomment to re-enable left arm when hardware is reconnected:
+        # bus1_motors.update({
+        #     "left_arm_shoulder_pan": Motor(1, "sts3215", norm_mode_body),
+        #     "left_arm_shoulder_lift": Motor(2, "sts3215", norm_mode_body),
+        #     "left_arm_elbow_flex": Motor(3, "sts3215", norm_mode_body),
+        #     "left_arm_wrist_flex": Motor(4, "sts3215", norm_mode_body),
+        #     "left_arm_wrist_roll": Motor(5, "sts3215", norm_mode_body),
+        #     "left_arm_gripper": Motor(6, "sts3215", MotorNormMode.RANGE_0_100),
+        # })
         self.bus1 = FeetechMotorsBus(
             port=self.config.port1,
-            motors={
-                # left arm
-                "left_arm_shoulder_pan": Motor(1, "sts3215", norm_mode_body),
-                "left_arm_shoulder_lift": Motor(2, "sts3215", norm_mode_body),
-                "left_arm_elbow_flex": Motor(3, "sts3215", norm_mode_body),
-                "left_arm_wrist_flex": Motor(4, "sts3215", norm_mode_body),
-                "left_arm_wrist_roll": Motor(5, "sts3215", norm_mode_body),
-                "left_arm_gripper": Motor(6, "sts3215", MotorNormMode.RANGE_0_100),
-                # head
-                "head_motor_1": Motor(7, "sts3215", norm_mode_body),
-                "head_motor_2": Motor(8, "sts3215", norm_mode_body),
-            },
+            motors=bus1_motors,
             calibration= calibration1,
         )
         if self.calibration.get("right_arm_shoulder_pan") is not None:
@@ -211,8 +217,15 @@ class XLerobot(Robot):
             logger.info("No calibration file found, proceeding with manual calibration...")
             self.calibrate()
 
-        for cam in self.cameras.values():
-            cam.connect()
+        failed_cams = []
+        for cam_name, cam in self.cameras.items():
+            try:
+                cam.connect()
+            except Exception as e:
+                logger.warning(f"Failed to connect camera '{cam_name}': {e}. Continuing without this camera.")
+                failed_cams.append(cam_name)
+        if failed_cams:
+            logger.warning(f"The following cameras failed to connect and will be unavailable: {failed_cams}")
 
         self.configure()
         logger.info(f"{self} connected.")
@@ -339,7 +352,15 @@ class XLerobot(Robot):
         
         
         self.bus1.enable_torque()
-        self.bus2.enable_torque()
+        try:
+            self.bus2.enable_torque()
+        except Exception as e:
+            logger.warning(f"Failed to enable torque on bus2: {e}. Retrying individual motors...")
+            for name in self.right_arm_motors + self.base_motors:
+                try:
+                    self.bus2.enable_torque(name)
+                except Exception as e2:
+                    logger.error(f"Failed to enable torque on {name}: {e2}")
         
 
     def setup_motors(self) -> None:
@@ -529,7 +550,7 @@ class XLerobot(Robot):
 
         # Read actuators position for arm and vel for base
         start = time.perf_counter()
-        left_arm_pos = self.bus1.sync_read("Present_Position", self.left_arm_motors)
+        left_arm_pos = self.bus1.sync_read("Present_Position", self.left_arm_motors) if self.left_arm_motors else {}
         right_arm_pos = self.bus2.sync_read("Present_Position", self.right_arm_motors)
         head_pos = self.bus1.sync_read("Present_Position", self.head_motors)
         base_wheel_vel = self.bus2.sync_read("Present_Velocity", self.base_motors)
@@ -593,7 +614,7 @@ class XLerobot(Robot):
         
         if self.config.max_relative_target is not None:
             # Read present positions for left arm, right arm, and head
-            present_pos_left = self.bus1.sync_read("Present_Position", self.left_arm_motors)
+            present_pos_left = self.bus1.sync_read("Present_Position", self.left_arm_motors) if self.left_arm_motors else {}
             present_pos_right = self.bus2.sync_read("Present_Position", self.right_arm_motors)
             present_pos_head = self.bus1.sync_read("Present_Position", self.head_motors)
 

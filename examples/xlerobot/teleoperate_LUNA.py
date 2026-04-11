@@ -34,9 +34,9 @@ LEFT_KEYMAP = {
 #     'wrist_roll+': 'lb_right', 'wrist_roll-': 'lb_left',
 #     # Left trigger controls left gripper
 #     'gripper+': 'left_trigger',
-#     # Head motors
-#     "head_motor_1+": 'b', "head_motor_1-": 'x',
-#     "head_motor_2+": 'a', "head_motor_2-": 'y',
+    # Head motors
+    "head_motor_1+": 'b', "head_motor_1-": 'x',
+    "head_motor_2+": 'a', "head_motor_2-": 'y',
      }
 RIGHT_KEYMAP = {
     # Right stick controls right arm XY (when not pressed)
