@@ -542,22 +542,22 @@ class XLerobot(Robot):
         }
 
     def _bus2_read_individual(self, data_name: str, motors: list[str]) -> dict[str, Any]:
-        """Read from bus2 motors one at a time (sync_read corrupts this bus).
-        Uses lerobot's sync_read with a single motor name for proper normalization."""
+        """Read from bus2 motors one at a time using single-motor read().
+        The sync protocol (bulk broadcast) corrupts this 9-motor daisy chain."""
         results = {}
         for name in motors:
             try:
-                val = self.bus2.sync_read(data_name, name)
-                results.update(val)
+                results[name] = self.bus2.read(data_name, name)
             except Exception:
                 logger.warning(f"Failed to read {data_name} from {name}")
         return results
 
     def _bus2_write_individual(self, data_name: str, values: dict[str, Any]) -> None:
-        """Write to bus2 motors one at a time (sync_write corrupts this bus)."""
+        """Write to bus2 motors one at a time using single-motor write().
+        The sync protocol (bulk broadcast) corrupts this 9-motor daisy chain."""
         for name, val in values.items():
             try:
-                self.bus2.sync_write(data_name, {name: val})
+                self.bus2.write(data_name, name, val)
             except Exception:
                 logger.warning(f"Failed to write {data_name} to {name}")
 
