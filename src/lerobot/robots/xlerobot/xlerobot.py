@@ -318,9 +318,13 @@ class XLerobot(Robot):
         self.bus1.disable_torque()
         self.bus1.configure_motors()
 
-        # bus 2 — return_delay_time=10 prevents bus corruption when writing to multiple motors
+        # bus 2 — write staggered Return_Delay_Time values matching motor IDs
+        # to prevent bus response collisions on the shared serial line.
+        # Do NOT call configure_motors() which overwrites with a uniform value.
         self.bus2.disable_torque()
-        self.bus2.configure_motors(return_delay_time=10)
+        for name, motor in self.bus2.motors.items():
+            self.bus2.write("Return_Delay_Time", name, motor.id)
+            self.bus2.write("Acceleration", name, 254)
         
         
         for name in self.left_arm_motors:
