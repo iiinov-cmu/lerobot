@@ -47,8 +47,8 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
 @dataclass
 class XLerobotConfig(RobotConfig):
     
-    port1: str = "/dev/ttyACM1"  # bus1: head motors (was left arm + head)
-    port2: str = "/dev/ttyACM0"  # bus2: right arm + base
+    port1: str = "/dev/ttyACM0"  # bus1: head motors
+    port2: str = "/dev/ttyACM1"  # bus2: right arm + base
     disable_torque_on_disconnect: bool = True
 
     # `max_relative_target` limits the magnitude of the relative positional target vector for safety purposes.
