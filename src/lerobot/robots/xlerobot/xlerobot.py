@@ -344,12 +344,18 @@ class XLerobot(Robot):
         # (Lock=1) and bulk writes corrupt this 9-motor daisy chain.
 
         self.bus1.enable_torque()
-        # Enable torque on bus2 one motor at a time — sync_write fails on this bus
+        # Enable torque on bus2 using raw writes — the lerobot write() method
+        # does a read-back verification that doubles bus traffic and causes
+        # corruption on this 9-motor chain. Raw single-byte writes work.
         import time
         for name in self.right_arm_motors + self.base_motors:
+            motor_id = self.bus2.motors[name].id
             try:
-                self.bus2.enable_torque(name)
-                time.sleep(0.05)
+                self.bus2.packet_handler.write1ByteTxRx(
+                    self.bus2.port_handler, motor_id, 40, 1  # addr 40 = Torque_Enable
+                )
+                time.sleep(0.1)
+                logger.info(f"Torque enabled on {name} (ID {motor_id})")
             except Exception as e:
                 logger.error(f"Failed to enable torque on {name}: {e}")
         
