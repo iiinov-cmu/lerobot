@@ -542,54 +542,24 @@ class XLerobot(Robot):
         }
 
     def _bus2_read_individual(self, data_name: str, motors: list[str]) -> dict[str, Any]:
-        """Read from bus2 motors one at a time (sync_read corrupts this bus)."""
-        from lerobot.motors.motors_bus import get_address
-        model = next(iter(self.bus2.motors.values())).model
-        addr, length = get_address(self.bus2.model_ctrl_table, model, data_name)
+        """Read from bus2 motors one at a time (sync_read corrupts this bus).
+        Uses lerobot's sync_read with a single motor name for proper normalization."""
         results = {}
         for name in motors:
-            motor_id = self.bus2.motors[name].id
-            if length == 1:
-                val, res, _ = self.bus2.packet_handler.read1ByteTxRx(
-                    self.bus2.port_handler, motor_id, addr)
-            elif length == 2:
-                val, res, _ = self.bus2.packet_handler.read2ByteTxRx(
-                    self.bus2.port_handler, motor_id, addr)
-            else:
-                val, res, _ = self.bus2.packet_handler.read4ByteTxRx(
-                    self.bus2.port_handler, motor_id, addr)
-            if res == 0:
-                # Apply sign decoding for signed values
-                if data_name in self.bus2.signed_data and length == 2 and val >= 0x8000:
-                    val -= 0x10000
-                # Apply calibration normalization if available
-                if self.bus2.calibration and name in self.bus2.calibration and data_name in self.bus2.normalized_data:
-                    cal = self.bus2.calibration[name]
-                    val = self.bus2._normalize_cal(data_name, name, val, cal)
-                results[name] = val
-            else:
-                logger.warning(f"Failed to read {data_name} from {name} (ID {motor_id})")
+            try:
+                val = self.bus2.sync_read(data_name, name)
+                results.update(val)
+            except Exception:
+                logger.warning(f"Failed to read {data_name} from {name}")
         return results
 
     def _bus2_write_individual(self, data_name: str, values: dict[str, Any]) -> None:
         """Write to bus2 motors one at a time (sync_write corrupts this bus)."""
-        from lerobot.motors.motors_bus import get_address
-        model = next(iter(self.bus2.motors.values())).model
-        addr, length = get_address(self.bus2.model_ctrl_table, model, data_name)
         for name, val in values.items():
-            motor_id = self.bus2.motors[name].id
-            int_val = int(round(val))
-            if length == 2 and int_val < 0:
-                int_val += 0x10000
-            if length == 1:
-                self.bus2.packet_handler.write1ByteTxRx(
-                    self.bus2.port_handler, motor_id, addr, int_val)
-            elif length == 2:
-                self.bus2.packet_handler.write2ByteTxRx(
-                    self.bus2.port_handler, motor_id, addr, int_val)
-            else:
-                self.bus2.packet_handler.write4ByteTxRx(
-                    self.bus2.port_handler, motor_id, addr, int_val)
+            try:
+                self.bus2.sync_write(data_name, {name: val})
+            except Exception:
+                logger.warning(f"Failed to write {data_name} to {name}")
 
     def get_observation(self) -> dict[str, Any]:
         if not self.is_connected:
