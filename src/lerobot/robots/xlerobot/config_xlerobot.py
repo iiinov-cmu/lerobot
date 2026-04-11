@@ -34,11 +34,11 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
         "head": RealSenseCameraConfig(
             serial_number_or_name="947122060072",  # Intel RealSense D415
             fps=30,
-            width=640,
-            height=480,
+            width=1280,
+            height=720,
             color_mode=ColorMode.BGR,
             rotation=Cv2Rotation.NO_ROTATION,
-            use_depth=False,
+            use_depth=True,
             warmup_s=5,
         ),
     }
