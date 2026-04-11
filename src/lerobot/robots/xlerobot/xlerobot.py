@@ -318,10 +318,12 @@ class XLerobot(Robot):
         self.bus1.disable_torque()
         self.bus1.configure_motors()
 
-        # bus 2 — skip configure_motors entirely. The staggered Return_Delay_Time
-        # values (set to motor ID) are already in EEPROM and any write sequence
-        # to 9 motors on this bus corrupts communication. Only disable torque.
-        self.bus2.disable_torque()
+        # bus 2 — ALL operations must be single-motor (no sync/bulk).
+        # The 9-motor daisy chain corrupts on any bulk protocol instruction.
+        import time
+        for name in self.right_arm_motors + self.base_motors:
+            self.bus2.write("Torque_Enable", name, 0, normalize=False)
+            time.sleep(0.02)
         
         
         for name in self.left_arm_motors:
