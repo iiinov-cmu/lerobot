@@ -577,11 +577,11 @@ class XLerobot(Robot):
         right_arm_pos = self._bus2_read_individual("Present_Position", self.right_arm_motors)
         head_pos = self.bus1.sync_read("Present_Position", self.head_motors)
         base_wheel_vel = self._bus2_read_individual("Present_Velocity", self.base_motors)
-        
+
         base_vel = self._wheel_raw_to_body(
-            base_wheel_vel["base_left_wheel"],
-            base_wheel_vel["base_back_wheel"],
-            base_wheel_vel["base_right_wheel"],
+            base_wheel_vel.get("base_left_wheel", 0),
+            base_wheel_vel.get("base_back_wheel", 0),
+            base_wheel_vel.get("base_right_wheel", 0),
         )
         
         left_arm_state = {f"{k}.pos": v for k, v in left_arm_pos.items()}

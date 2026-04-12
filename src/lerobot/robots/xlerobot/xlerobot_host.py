@@ -104,6 +104,9 @@ def main():
                 # .copy() needed: pyrealsense2 (conda-forge) returns arrays with
                 # a different numpy ABI than pip's opencv-python expects
                 img = last_observation[cam_key]
+                if img is None or not hasattr(img, 'shape'):
+                    last_observation[cam_key] = ""
+                    continue
                 if hasattr(img, 'copy'):
                     img = img.copy()
                 ret, buffer = cv2.imencode(
