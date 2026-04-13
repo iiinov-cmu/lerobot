@@ -27,9 +27,9 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
         #     index_or_path="/dev/video0", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
         # ),
 
-        # "right_wrist": OpenCVCameraConfig(
-        #     index_or_path="/dev/video2", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
-        # ),
+        "right_wrist": OpenCVCameraConfig(
+            index_or_path="/dev/video6", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+        ),
 
         "head": RealSenseCameraConfig(
             serial_number_or_name="947122060072",  # Intel RealSense D415
