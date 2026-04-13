@@ -14,7 +14,7 @@
 
 from dataclasses import dataclass, field
 
-from lerobot.cameras.configs import CameraConfig, Cv2Rotation, ColorMode
+from lerobot.cameras.configs import CameraConfig, Cv2Backends, Cv2Rotation, ColorMode
 from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
 from lerobot.cameras.realsense import RealSenseCamera, RealSenseCameraConfig
 
@@ -28,7 +28,8 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
         # ),
 
         "right_wrist": OpenCVCameraConfig(
-            index_or_path="/dev/video6", fps=30, width=640, height=480, rotation=Cv2Rotation.NO_ROTATION
+            index_or_path="/dev/video6", fps=30, width=640, height=480,
+            rotation=Cv2Rotation.NO_ROTATION, backend=Cv2Backends.V4L2,
         ),
 
         "head": RealSenseCameraConfig(
