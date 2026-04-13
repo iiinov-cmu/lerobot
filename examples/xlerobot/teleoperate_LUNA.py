@@ -60,14 +60,6 @@ BASE_KEYMAP = {
 # Global reset key for all components
 RESET_KEY = 'back'
 
-LEFT_JOINT_MAP = {
-    "shoulder_pan": "left_arm_shoulder_pan",
-    "shoulder_lift": "left_arm_shoulder_lift",
-    "elbow_flex": "left_arm_elbow_flex",
-    "wrist_flex": "left_arm_wrist_flex",
-    "wrist_roll": "left_arm_wrist_roll",
-    "gripper": "left_arm_gripper",
-}
 RIGHT_JOINT_MAP = {
     "shoulder_pan": "right_arm_shoulder_pan",
     "shoulder_lift": "right_arm_shoulder_lift",
@@ -130,12 +122,12 @@ class SimpleTeleopArm:
         self.kp = kp
         # Initial joint positions
         self.joint_positions = {
-            "shoulder_pan": initial_obs[f"{prefix}_arm_shoulder_pan.pos"],
-            "shoulder_lift": initial_obs[f"{prefix}_arm_shoulder_lift.pos"],
-            "elbow_flex": initial_obs[f"{prefix}_arm_elbow_flex.pos"],
-            "wrist_flex": initial_obs[f"{prefix}_arm_wrist_flex.pos"],
-            "wrist_roll": initial_obs[f"{prefix}_arm_wrist_roll.pos"],
-            "gripper": initial_obs[f"{prefix}_arm_gripper.pos"],
+            "shoulder_pan": initial_obs.get(f"{prefix}_arm_shoulder_pan.pos", 0.0),
+            "shoulder_lift": initial_obs.get(f"{prefix}_arm_shoulder_lift.pos", 0.0),
+            "elbow_flex": initial_obs.get(f"{prefix}_arm_elbow_flex.pos", 0.0),
+            "wrist_flex": initial_obs.get(f"{prefix}_arm_wrist_flex.pos", 0.0),
+            "wrist_roll": initial_obs.get(f"{prefix}_arm_wrist_roll.pos", 0.0),
+            "gripper": initial_obs.get(f"{prefix}_arm_gripper.pos", 0.0),
         }
         # Set initial x/y to fixed values
         self.current_x = 0.1629
@@ -649,39 +641,33 @@ def main():
 
     # Init the arm and head instances
     obs = robot.get_observation()
-    kin_left = SO101Kinematics()
     kin_right = SO101Kinematics()
-    left_arm = SimpleTeleopArm(kin_left, LEFT_JOINT_MAP, obs, prefix="left")
     right_arm = SimpleTeleopArm(kin_right, RIGHT_JOINT_MAP, obs, prefix="right")
     head_control = SimpleHeadControl(obs)
 
-    # Move both arms and head to zero position at start
-    left_arm.move_to_zero_position(robot)
+    # Move arm and head to zero position at start
     right_arm.move_to_zero_position(robot)
 
     try:
         while True:
             pygame.event.pump()
-            left_key_state = get_xbox_key_state(controller, LEFT_KEYMAP)
+            head_key_state = get_xbox_key_state(controller, LEFT_KEYMAP)
             right_key_state = get_xbox_key_state(controller, RIGHT_KEYMAP)
 
             # Check for global reset (back button)
             global_reset = controller.get_button('back')
-            
+
             # Handle global reset for all components
             if global_reset:
                 print("[MAIN] Global reset triggered!")
-                left_arm.move_to_zero_position(robot)
                 right_arm.move_to_zero_position(robot)
                 head_control.move_to_zero_position(robot)
                 continue
 
-            # Handle both arms separately and simultaneously
-            left_arm.handle_keys(left_key_state)
+            # Handle arm and head
             right_arm.handle_keys(right_key_state)
-            head_control.handle_keys(left_key_state)  # Head controlled by left arm keymap
+            head_control.handle_keys(head_key_state)
 
-            left_action = left_arm.p_control_action(robot)
             right_action = right_arm.p_control_action(robot)
             head_action = head_control.p_control_action(robot)
 
@@ -696,7 +682,7 @@ def main():
                         base_action[key] *= speed_multiplier
 
             # Merge all actions
-            action = {**left_action, **right_action, **head_action, **base_action}
+            action = {**right_action, **head_action, **base_action}
             robot.send_action(action)
 
             obs = robot.get_observation()
