@@ -8,7 +8,7 @@ PYTHONPATH=src python -m lerobot.robots.xlerobot.xlerobot_host --robot.id=my_xle
 python -m examples.xlerobot.teleoperate_LUNA
 '''
 
-# raspberry_pi_ip = "172.26.228.175"  # UPDATE THIS WITH YOUR RASPBERRY PI'S IP, dont uncomment this line
+# raspberry_pi_ip = "172.26.205.130"  # UPDATE THIS WITH YOUR RASPBERRY PI'S IP, dont uncomment this line
 
 import time
 import numpy as np
@@ -544,7 +544,7 @@ def get_base_speed_control(controller):
 def main():
     FPS = 30
     # Find it by running 'hostname -I' on the Raspberry Pi
-    raspberry_pi_ip = "172.26.228.175"  # UPDATE THIS WITH YOUR RASPBERRY PI'S IP
+    raspberry_pi_ip = "172.26.205.130"  # UPDATE THIS WITH YOUR RASPBERRY PI'S IP
     
     # RealSense camera configuration
     # You can specify the serial number or name of your RealSense camera
