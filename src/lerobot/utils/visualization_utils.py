@@ -90,7 +90,10 @@ def log_rerun_data(
                     for i, vi in enumerate(arr):
                         rr.log(f"{key}_{i}", rr.Scalars(float(vi)))
                 else:
-                    img_entity = rr.Image(arr).compress() if compress_images else rr.Image(arr)
+                    # Rerun's .compress() is JPEG-only (uint8). For uint16 depth
+                    # maps and the like, log raw so rerun picks the right codec.
+                    can_compress = compress_images and arr.dtype == np.uint8
+                    img_entity = rr.Image(arr).compress() if can_compress else rr.Image(arr)
                     rr.log(key, entity=img_entity, static=True)
 
     if action:
