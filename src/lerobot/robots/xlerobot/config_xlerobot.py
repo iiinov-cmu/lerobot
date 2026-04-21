@@ -28,7 +28,9 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
         # ),
 
         "right_wrist": OpenCVCameraConfig(
-            index_or_path="/dev/video6", fps=30, width=640, height=480,
+            # by-id symlink: stable across reboots/replug regardless of /dev/videoN numbering
+            index_or_path="/dev/v4l/by-id/usb-Innomaker_Innomaker-U20CAM-1080p-S1_SN0001-video-index0",
+            fps=30, width=640, height=480,
             rotation=Cv2Rotation.NO_ROTATION, backend=Cv2Backends.V4L2,
         ),
 
