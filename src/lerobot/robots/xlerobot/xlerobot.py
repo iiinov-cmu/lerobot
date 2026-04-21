@@ -603,6 +603,8 @@ class XLerobot(Robot):
         for cam_key, cam in self.connected_cameras.items():
             start = time.perf_counter()
             obs_dict[cam_key] = cam.async_read()
+            if getattr(cam, "use_depth", False):
+                obs_dict[f"{cam_key}.depth"] = cam.read_depth()
             dt_ms = (time.perf_counter() - start) * 1e3
             logger.debug(f"{self} read {cam_key}: {dt_ms:.1f}ms")
 

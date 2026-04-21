@@ -41,7 +41,7 @@ def xlerobot_cameras_config() -> dict[str, CameraConfig]:
             height=480,
             color_mode=ColorMode.BGR,
             rotation=Cv2Rotation.NO_ROTATION,
-            use_depth=False,  # depth + high res causes warmup timeout on D415
+            use_depth=True,  # verified 2026-04-21: warms up at 640x480 + depth in ~10s on Pi
             warmup_s=5,
         ),
     }

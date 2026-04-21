@@ -183,14 +183,21 @@ class XLerobotClient(Robot):
             logging.error(f"Error decoding JSON observation: {e}")
             return None
 
-    def _decode_image_from_b64(self, image_b64: str) -> Optional[np.ndarray]:
-        """Decodes a base64 encoded image string to an OpenCV image."""
+    def _decode_image_from_b64(
+        self, image_b64: str, is_depth: bool = False
+    ) -> Optional[np.ndarray]:
+        """Decodes a base64 encoded image string to an OpenCV image.
+
+        Color frames are IMREAD_COLOR (uint8 BGR). Depth frames are
+        IMREAD_UNCHANGED so the 16-bit PNG decodes to uint16 (H, W).
+        """
         if not image_b64:
             return None
         try:
-            jpg_data = base64.b64decode(image_b64)
-            np_arr = np.frombuffer(jpg_data, dtype=np.uint8)
-            frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            raw = base64.b64decode(image_b64)
+            np_arr = np.frombuffer(raw, dtype=np.uint8)
+            flag = cv2.IMREAD_UNCHANGED if is_depth else cv2.IMREAD_COLOR
+            frame = cv2.imdecode(np_arr, flag)
             if frame is None:
                 logging.warning("cv2.imdecode returned None for an image.")
             return frame
@@ -209,14 +216,17 @@ class XLerobotClient(Robot):
 
         obs_dict: Dict[str, Any] = {**flat_state, "observation.state": state_vec}
 
-        # Decode images
+        # Decode images. Color frames are JPEG; ".depth"-suffixed frames are PNG-16.
         current_frames: Dict[str, np.ndarray] = {}
-        for cam_name, image_b64 in observation.items():
-            if cam_name not in self._cameras_ft:
+        for key, image_b64 in observation.items():
+            if key in self._cameras_ft:
+                frame = self._decode_image_from_b64(image_b64, is_depth=False)
+            elif key.endswith(".depth") and key.rsplit(".", 1)[0] in self._cameras_ft:
+                frame = self._decode_image_from_b64(image_b64, is_depth=True)
+            else:
                 continue
-            frame = self._decode_image_from_b64(image_b64)
             if frame is not None:
-                current_frames[cam_name] = frame
+                current_frames[key] = frame
 
         return current_frames, obs_dict
 

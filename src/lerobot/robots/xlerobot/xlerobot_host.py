@@ -97,25 +97,39 @@ def main():
                     last_observation = {}
                 # Send stale observation rather than crashing
 
-            # Encode ndarrays to base64 strings
+            # Encode ndarrays to base64 strings.
+            # Color frames -> JPEG-90; depth frames -> PNG-16 (lossless).
             for cam_key in robot.connected_cameras:
-                if cam_key not in last_observation:
-                    continue
                 # .copy() needed: pyrealsense2 (conda-forge) returns arrays with
                 # a different numpy ABI than pip's opencv-python expects
-                img = last_observation[cam_key]
-                if img is None or not hasattr(img, 'shape'):
-                    last_observation[cam_key] = ""
-                    continue
-                if hasattr(img, 'copy'):
-                    img = img.copy()
-                ret, buffer = cv2.imencode(
-                    ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
-                )
-                if ret:
-                    last_observation[cam_key] = base64.b64encode(buffer).decode("utf-8")
-                else:
-                    last_observation[cam_key] = ""
+                if cam_key in last_observation:
+                    img = last_observation[cam_key]
+                    if img is None or not hasattr(img, 'shape'):
+                        last_observation[cam_key] = ""
+                    else:
+                        if hasattr(img, 'copy'):
+                            img = img.copy()
+                        ret, buffer = cv2.imencode(
+                            ".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
+                        )
+                        last_observation[cam_key] = (
+                            base64.b64encode(buffer).decode("utf-8") if ret else ""
+                        )
+
+                depth_key = f"{cam_key}.depth"
+                if depth_key in last_observation:
+                    depth = last_observation[depth_key]
+                    if depth is None or not hasattr(depth, 'shape'):
+                        last_observation[depth_key] = ""
+                    else:
+                        if hasattr(depth, 'copy'):
+                            depth = depth.copy()
+                        ret, buffer = cv2.imencode(
+                            ".png", depth, [int(cv2.IMWRITE_PNG_COMPRESSION), 3]
+                        )
+                        last_observation[depth_key] = (
+                            base64.b64encode(buffer).decode("utf-8") if ret else ""
+                        )
 
             # Send the observation to the remote agent
             try:
