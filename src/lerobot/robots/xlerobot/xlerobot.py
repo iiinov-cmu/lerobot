@@ -604,7 +604,9 @@ class XLerobot(Robot):
             start = time.perf_counter()
             obs_dict[cam_key] = cam.async_read()
             if getattr(cam, "use_depth", False):
-                obs_dict[f"{cam_key}.depth"] = cam.read_depth()
+                # timeout_ms=0 silences RealSense read_depth's deprecated-arg warning;
+                # the async thread already keeps latest_depth_frame fresh.
+                obs_dict[f"{cam_key}.depth"] = cam.read_depth(timeout_ms=0)
             dt_ms = (time.perf_counter() - start) * 1e3
             logger.debug(f"{self} read {cam_key}: {dt_ms:.1f}ms")
 
