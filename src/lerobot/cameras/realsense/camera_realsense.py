@@ -129,6 +129,9 @@ class RealSenseCamera(Camera):
 
         self.rs_pipeline: rs.pipeline | None = None
         self.rs_profile: rs.pipeline_profile | None = None
+        # Aligner used when use_depth is True to reproject depth into the color
+        # optical frame so depth and color pixels correspond 1:1. Created in connect().
+        self.rs_align: rs.align | None = None
 
         self.thread: Thread | None = None
         self.stop_event: Event | None = None
@@ -186,6 +189,15 @@ class RealSenseCamera(Camera):
             ) from e
 
         self._configure_capture_settings()
+
+        # When depth is enabled, align depth to color so that a given (u, v) pixel
+        # in both streams refers to the same ray. Depth values are then expressed
+        # in the color optical frame (not the depth sensor's native frame).
+        if self.use_depth:
+            self.rs_align = rs.align(rs.stream.color)
+        else:
+            self.rs_align = None
+
         self._start_read_thread()
 
         # NOTE(Steven/Caroline): Enforcing at least one second of warmup as RS cameras need a bit of time before the first read. If we don't wait, the first read from the warmup will raise.
@@ -474,6 +486,10 @@ class RealSenseCamera(Camera):
         while not self.stop_event.is_set():
             try:
                 frame = self._read_from_hardware()
+                # Align depth to color when depth is requested so that depth(u,v)
+                # corresponds to color(u,v). Color frame itself is unchanged.
+                if self.use_depth and self.rs_align is not None:
+                    frame = self.rs_align.process(frame)
                 color_frame_raw = frame.get_color_frame()
                 color_frame = np.asanyarray(color_frame_raw.get_data())
                 processed_color_frame = self._postprocess_image(color_frame)
@@ -629,6 +645,7 @@ class RealSenseCamera(Camera):
             self.rs_pipeline.stop()
             self.rs_pipeline = None
             self.rs_profile = None
+            self.rs_align = None
 
         with self.frame_lock:
             self.latest_color_frame = None
